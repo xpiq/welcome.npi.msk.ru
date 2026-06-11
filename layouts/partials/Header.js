@@ -7,6 +7,13 @@ import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import config from "../../config/config.json";
 
+const menuVisibilityByUrl = {
+  "/": "show_home_link",
+  "/blogs": "show_blog_link",
+  "/pricing": "show_pricing_link",
+  "/faq": "show_faq_link",
+};
+
 const Header = () => {
   const pathname = usePathname();
 
@@ -21,6 +28,7 @@ const Header = () => {
   const [buttonLabel, setButtonLabel] = useState("");
   const [buttonLink, setButtonLink] = useState("");
   const [buttonEnabled, setButtonEnabled] = useState(false);
+  const [hiddenMenuUrls, setHiddenMenuUrls] = useState([]);
 
   useEffect(() => {
     fetch("https://strapi.npi.msk.ru/api/site-setting?populate=*")
@@ -34,6 +42,11 @@ const Header = () => {
         setButtonLabel(buttonText || "");
         setButtonLink(buttonUrl || "");
         setButtonEnabled(Boolean(buttonText && buttonUrl));
+        setHiddenMenuUrls(
+          Object.entries(menuVisibilityByUrl)
+            .filter(([, fieldName]) => data?.[fieldName] === false)
+            .map(([url]) => url)
+        );
       })
       .catch(() => {
         setButtonEnabled(false);
@@ -78,7 +91,9 @@ const Header = () => {
           }`}
         >
           <ul className="navbar-nav block w-full md:flex md:w-auto lg:space-x-2">
-            {main.map((menu, i) => (
+            {main
+              .filter((menu) => !hiddenMenuUrls.includes(menu.url))
+              .map((menu, i) => (
               <React.Fragment key={`menu-${i}`}>
                 {menu.hasChildren ? (
                   <li className="nav-item nav-dropdown group relative">
