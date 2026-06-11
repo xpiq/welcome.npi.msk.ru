@@ -2,6 +2,10 @@ import { markdownify } from "@lib/utils/textConverter";
 import Image from "next/image";
 
 const HomeFeatures = ({ feature }) => {
+  if (!feature?.features?.length) {
+    return null;
+  }
+
   return (
     <section className="section bg-theme-light">
       <div className="container">
@@ -9,26 +13,36 @@ const HomeFeatures = ({ feature }) => {
           <h2>{markdownify(feature.title)}</h2>
         </div>
         <div className="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-          {feature.features.map((item, i) => (
-            <div
-              className="feature-card rounded-xl bg-white p-5 pb-8 text-center"
-              key={`feature-${i}`}
-            >
-              {item.icon && (
-                <Image
-                  className="mx-auto"
-                  src={item.icon}
-                  width={30}
-                  height={30}
-                  alt=""
-                />
-              )}
-              <div className="mt-4">
-                {markdownify(item.name, "h3", "h5")}
-                <p className="mt-3">{item.content}</p>
+          {feature.features.map((item, i) => {
+            const itemTitle = item.title || item.name;
+            const itemContent = item.short_text || item.content;
+            const itemImage = item.image || item.icon;
+            const cardStyle = item.background_color
+              ? { backgroundColor: item.background_color }
+              : undefined;
+
+            return (
+              <div
+                className="feature-card rounded-xl bg-white p-5 pb-8 text-center"
+                key={"feature-" + i}
+                style={cardStyle}
+              >
+                {itemImage && (
+                  <Image
+                    className="mx-auto"
+                    src={itemImage}
+                    width={30}
+                    height={30}
+                    alt=""
+                  />
+                )}
+                <div className="mt-4">
+                  {itemTitle && markdownify(itemTitle, "h3", "h5")}
+                  {itemContent && <p className="mt-3">{itemContent}</p>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
