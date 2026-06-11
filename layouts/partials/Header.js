@@ -11,6 +11,7 @@ const menuVisibilityByUrl = {
   "/": "show_home_link",
   "/blogs": "show_blog_link",
   "/pricing": "show_pricing_link",
+  "/contact": "show_contact_link",
   "/faq": "show_faq_link",
 };
 
