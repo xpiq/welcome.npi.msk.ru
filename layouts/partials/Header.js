@@ -4,7 +4,7 @@ import Logo from "@components/Logo";
 import menu from "@config/menu.json";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import config from "../../config/config.json";
 
 const Header = () => {
@@ -19,6 +19,27 @@ const Header = () => {
   // logo source
   const { logo } = config.site;
   const { enable, label, link } = config.nav_button;
+  const [buttonLabel, setButtonLabel] = useState(label);
+  const [buttonLink, setButtonLink] = useState(link);
+
+  useEffect(() => {
+    fetch("https://strapi.npi.msk.ru/api/site-setting?populate=*")
+      .then((res) => res.json())
+      .then((json) => {
+        const data = json.data?.attributes || json.data;
+
+        if (data?.header_contact_button_text) {
+          setButtonLabel(data.header_contact_button_text);
+        }
+
+        if (data?.header_contact_button_url) {
+          setButtonLink(data.header_contact_button_url);
+        }
+      })
+      .catch(() => {
+        // Keep config defaults when Strapi is unavailable.
+      });
+  }, []);
 
   return (
     <header className="header">
@@ -100,10 +121,9 @@ const Header = () => {
               <li className="md:hidden">
                 <Link
                   className="btn btn-primary z-0 py-[14px]"
-                  href={link}
-                  rel=""
+                  href={buttonLink}
                 >
-                  {label}
+                  {buttonLabel}
                 </Link>
               </li>
             )}
@@ -111,8 +131,8 @@ const Header = () => {
         </div>
         {enable && (
           <div className="d-flex order-1 ml-auto hidden min-w-[200px] items-center justify-end md:order-2 md:ml-0 md:flex">
-            <Link className="btn btn-primary z-0 py-[14px]" href={link} rel="">
-              {label}
+            <Link className="btn btn-primary z-0 py-[14px]" href={buttonLink}>
+              {buttonLabel}
             </Link>
           </div>
         )}

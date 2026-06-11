@@ -12,6 +12,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@strapi/provider-upload-aws-s3": "^5.45.0",
     "github-slugger": "^2.0.0",
     "gray-matter": "^4.0.3",
     "marked": "^14.1.0",
