@@ -30,7 +30,6 @@ async function getContactPageFromStrapi() {
     const phone = trimValue(data.phone);
     const email = trimValue(data.email);
     const telegram = trimValue(data.telegram);
-    const address = trimValue(data.address);
     const telegramUsername = telegram.replace(/^@/, "");
 
     return {
@@ -43,7 +42,6 @@ async function getContactPageFromStrapi() {
         telegram
           ? `Telegram: [${telegram}](https://t.me/${telegramUsername})`
           : null,
-        address ? `Адрес: ${address}` : null,
       ].filter(Boolean),
     };
   } catch (error) {
