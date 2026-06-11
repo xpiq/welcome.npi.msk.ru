@@ -18,9 +18,9 @@ const Header = () => {
 
   // logo source
   const { logo } = config.site;
-  const { enable, label, link } = config.nav_button;
-  const [buttonLabel, setButtonLabel] = useState(label);
-  const [buttonLink, setButtonLink] = useState(link);
+  const [buttonLabel, setButtonLabel] = useState("");
+  const [buttonLink, setButtonLink] = useState("");
+  const [buttonEnabled, setButtonEnabled] = useState(false);
 
   useEffect(() => {
     fetch("https://strapi.npi.msk.ru/api/site-setting?populate=*")
@@ -28,16 +28,15 @@ const Header = () => {
       .then((json) => {
         const data = json.data?.attributes || json.data;
 
-        if (data?.header_contact_button_text) {
-          setButtonLabel(data.header_contact_button_text);
-        }
+        const buttonText = data?.header_contact_button_text?.trim();
+        const buttonUrl = data?.header_contact_button_url?.trim();
 
-        if (data?.header_contact_button_url) {
-          setButtonLink(data.header_contact_button_url);
-        }
+        setButtonLabel(buttonText || "");
+        setButtonLink(buttonUrl || "");
+        setButtonEnabled(Boolean(buttonText && buttonUrl));
       })
       .catch(() => {
-        // Keep config defaults when Strapi is unavailable.
+        setButtonEnabled(false);
       });
   }, []);
 
@@ -117,7 +116,7 @@ const Header = () => {
                 )}
               </React.Fragment>
             ))}
-            {enable && (
+            {buttonEnabled && (
               <li className="md:hidden">
                 <Link
                   className="btn btn-primary z-0 py-[14px]"
@@ -129,7 +128,7 @@ const Header = () => {
             )}
           </ul>
         </div>
-        {enable && (
+        {buttonEnabled && (
           <div className="d-flex order-1 ml-auto hidden min-w-[200px] items-center justify-end md:order-2 md:ml-0 md:flex">
             <Link className="btn btn-primary z-0 py-[14px]" href={buttonLink}>
               {buttonLabel}
