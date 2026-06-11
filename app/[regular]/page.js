@@ -6,6 +6,8 @@ import Pricing from "@layouts/Pricing";
 import SeoMeta from "@layouts/SeoMeta";
 import { getRegularPage, getSinglePage } from "@lib/contentParser";
 
+export const dynamic = "force-dynamic";
+
 const trimValue = (value) => (typeof value === "string" ? value.trim() : "");
 
 async function getContactPageFromStrapi() {
@@ -97,7 +99,7 @@ export default RegularPages;
 // for regular page routes
 export const generateStaticParams = async () => {
   const allslugs = await getSinglePage("content");
-  const slugs = allslugs.map((item) => item.slug);
+  const slugs = allslugs.map((item) => item.slug).filter((slug) => slug !== "contact");
   const paths = slugs.map((slug) => ({
     regular: slug,
   }));
