@@ -13,7 +13,7 @@ const Contact = ({ data }) => {
       ? strapiContact.contacts
       : info.contacts,
   };
-  const submitLabel = strapiContact?.button_text || "Send Now";
+  const submitLabel = strapiContact?.button_text || "Отправить";
 
   return (
     <section className="section">
@@ -31,7 +31,7 @@ const Contact = ({ data }) => {
                   className="form-input w-full rounded"
                   name="name"
                   type="text"
-                  placeholder="Name"
+                  placeholder="Ваше имя"
                   required
                 />
               </div>
@@ -40,7 +40,7 @@ const Contact = ({ data }) => {
                   className="form-input w-full rounded"
                   name="email"
                   type="email"
-                  placeholder="Your email"
+                  placeholder="Ваш email"
                   required
                 />
               </div>
@@ -49,7 +49,7 @@ const Contact = ({ data }) => {
                   className="form-input w-full rounded"
                   name="subject"
                   type="text"
-                  placeholder="Subject"
+                  placeholder="Тема"
                   required
                 />
               </div>
@@ -57,7 +57,7 @@ const Contact = ({ data }) => {
                 <textarea
                   className="form-textarea w-full rounded-md"
                   rows="7"
-                  placeholder="Your message"
+                  placeholder="Сообщение"
                 />
               </div>
               <button type="submit" className="btn btn-primary">
