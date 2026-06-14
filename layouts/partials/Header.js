@@ -30,6 +30,7 @@ const Header = () => {
   const [buttonLink, setButtonLink] = useState("");
   const [buttonEnabled, setButtonEnabled] = useState(false);
   const [hiddenMenuUrls, setHiddenMenuUrls] = useState([]);
+  const [showMainLogo, setShowMainLogo] = useState(true);
 
   useEffect(() => {
     fetch("https://strapi.npi.msk.ru/api/site-setting?populate=*")
@@ -43,6 +44,7 @@ const Header = () => {
         setButtonLabel(buttonText || "");
         setButtonLink(buttonUrl || "");
         setButtonEnabled(Boolean(buttonText && buttonUrl));
+        setShowMainLogo(data?.main_logo !== false);
         setHiddenMenuUrls(
           Object.entries(menuVisibilityByUrl)
             .filter(([, fieldName]) => data?.[fieldName] === false)
@@ -58,9 +60,11 @@ const Header = () => {
     <header className="header">
       <nav className="navbar container">
         {/* logo */}
-        <div className="order-0">
-          <Logo src={logo} />
-        </div>
+        {showMainLogo && (
+          <div className="order-0">
+            <Logo src={logo} />
+          </div>
+        )}
 
         {/* navbar toggler */}
         <button
