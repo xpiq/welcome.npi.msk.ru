@@ -1,49 +1,91 @@
+import { readFile } from "fs/promises";
 import nodemailer from "nodemailer";
 
 const STRAPI_API_URL = "http://127.0.0.1:1337";
 const DEFAULT_TO_EMAIL = "hello@npi.msk.ru";
+const DEFAULT_SUBJECT_PREFIX = "Сообщение с сайта";
 
 const trimValue = (value) => (typeof value === "string" ? value.trim() : "");
 
 const stripHeaderValue = (value) => trimValue(value).replace(/[\r\n]+/g, " ");
 
-async function getRecipientEmail() {
+const getStrapiData = (entry) => entry?.attributes || entry;
+
+async function fetchStrapiSingleType(path) {
   try {
-    const res = await fetch(STRAPI_API_URL + "/api/site-setting?populate=*", {
+    const res = await fetch(STRAPI_API_URL + path, {
       cache: "no-store",
     });
 
     if (!res.ok) {
-      return DEFAULT_TO_EMAIL;
+      return null;
     }
 
     const json = await res.json();
-    const data = json.data?.attributes || json.data;
-    const email = trimValue(data?.contact_email);
-
-    return email || DEFAULT_TO_EMAIL;
+    return getStrapiData(json.data);
   } catch (error) {
-    return DEFAULT_TO_EMAIL;
+    return null;
   }
 }
 
-function getSmtpTransport() {
-  const host = trimValue(process.env.SMTP_HOST);
-  const port = Number(process.env.SMTP_PORT || 465);
-  const user = trimValue(process.env.SMTP_USER);
-  const pass = trimValue(process.env.SMTP_PASS);
+async function getLegacyRecipientEmail() {
+  const data = await fetchStrapiSingleType("/api/site-setting?populate=*");
+  const email = trimValue(data?.contact_email);
 
-  if (!host || !user || !pass) {
+  return email || DEFAULT_TO_EMAIL;
+}
+
+async function readPasswordFile(filePath) {
+  const passwordFile = trimValue(filePath);
+
+  if (!passwordFile) {
+    return "";
+  }
+
+  try {
+    return trimValue(await readFile(passwordFile, "utf8"));
+  } catch (error) {
+    console.error("SMTP password file could not be read", error);
+    return "";
+  }
+}
+
+async function getMailSettings() {
+  const mailSettings = await fetchStrapiSingleType("/api/mail-setting/internal");
+  const legacyToEmail = await getLegacyRecipientEmail();
+  const smtpHost = trimValue(mailSettings?.smtp_host) || trimValue(process.env.SMTP_HOST);
+  const smtpPort = Number(mailSettings?.smtp_port || process.env.SMTP_PORT || 465);
+  const smtpUser = trimValue(mailSettings?.smtp_user) || trimValue(process.env.SMTP_USER);
+  const fromEmail = trimValue(mailSettings?.from_email) || trimValue(process.env.CONTACT_FROM_EMAIL) || smtpUser;
+  const toEmail = trimValue(mailSettings?.to_email) || legacyToEmail;
+  const subjectPrefix = trimValue(mailSettings?.subject_prefix) || DEFAULT_SUBJECT_PREFIX;
+  const smtpPass = await readPasswordFile(mailSettings?.smtp_password_file) || trimValue(process.env.SMTP_PASS);
+
+  return {
+    enabled: mailSettings?.enabled !== false,
+    smtpHost,
+    smtpPort,
+    smtpSecure: typeof mailSettings?.smtp_secure === "boolean" ? mailSettings.smtp_secure : smtpPort === 465,
+    smtpUser,
+    smtpPass,
+    fromEmail,
+    toEmail,
+    subjectPrefix,
+  };
+}
+
+function getSmtpTransport(settings) {
+  if (!settings.smtpHost || !settings.smtpUser || !settings.smtpPass) {
     throw new Error("SMTP settings are incomplete");
   }
 
   return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
+    host: settings.smtpHost,
+    port: settings.smtpPort,
+    secure: settings.smtpSecure,
     auth: {
-      user,
-      pass,
+      user: settings.smtpUser,
+      pass: settings.smtpPass,
     },
   });
 }
@@ -71,9 +113,6 @@ export async function POST(request) {
     );
   }
 
-  const toEmail = await getRecipientEmail();
-  const fromEmail = trimValue(process.env.CONTACT_FROM_EMAIL) || trimValue(process.env.SMTP_USER);
-  const mailSubject = "Сообщение с сайта: " + subject;
   const text = [
     "Новое сообщение с формы контактов",
     "",
@@ -86,13 +125,22 @@ export async function POST(request) {
   ].join("\n");
 
   try {
-    const transport = getSmtpTransport();
+    const settings = await getMailSettings();
+
+    if (!settings.enabled) {
+      return Response.json(
+        { ok: false, message: "Отправка формы временно отключена" },
+        { status: 503 }
+      );
+    }
+
+    const transport = getSmtpTransport(settings);
 
     await transport.sendMail({
-      to: toEmail,
-      from: fromEmail,
+      to: settings.toEmail,
+      from: settings.fromEmail,
       replyTo: email,
-      subject: mailSubject,
+      subject: settings.subjectPrefix + ": " + subject,
       text,
     });
 
