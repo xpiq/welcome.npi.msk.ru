@@ -18,7 +18,7 @@ const Contact = ({ data }) => {
   const { frontmatter } = data;
   const { title, info, strapiContact } = frontmatter;
   const { contact_form_action } = config.params;
-  const formAction = contact_form_action || "/api/contact";
+  const formAction = contact_form_action || "/contact-submit";
   const contactTitle = strapiContact?.title || title;
   const contactInfo = {
     title: strapiContact?.description || info.title,
