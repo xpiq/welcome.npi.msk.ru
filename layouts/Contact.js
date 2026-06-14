@@ -150,7 +150,6 @@ const Contact = ({ data }) => {
                     setFormMessage("");
                     setFormStatus("idle");
                   }}
-                  required
                 />
                 <input type="hidden" name="captcha_answer" value={captcha.answer} />
                 {captchaError && (
