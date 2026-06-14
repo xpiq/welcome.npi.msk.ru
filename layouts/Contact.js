@@ -48,6 +48,8 @@ const Contact = ({ data }) => {
     event.preventDefault();
 
     if (captchaValue.trim() !== captcha.answer) {
+      setFormStatus("idle");
+      setFormMessage("");
       setCaptchaError("Проверьте ответ на пример");
       captchaInputRef.current?.focus();
       return;
@@ -145,6 +147,8 @@ const Contact = ({ data }) => {
                   onChange={(event) => {
                     setCaptchaValue(event.target.value);
                     setCaptchaError("");
+                    setFormMessage("");
+                    setFormStatus("idle");
                   }}
                   required
                 />
