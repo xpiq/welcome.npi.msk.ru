@@ -4,10 +4,21 @@ import config from "@config/config.json";
 import { markdownify } from "@lib/utils/textConverter";
 import { useEffect, useRef, useState } from "react";
 
+const createCaptcha = () => {
+  const firstNumber = Math.floor(Math.random() * 8) + 2;
+  const secondNumber = Math.floor(Math.random() * 8) + 2;
+
+  return {
+    question: firstNumber + " + " + secondNumber,
+    answer: String(firstNumber + secondNumber),
+  };
+};
+
 const Contact = ({ data }) => {
   const { frontmatter } = data;
   const { title, info, strapiContact } = frontmatter;
   const { contact_form_action } = config.params;
+  const formAction = contact_form_action || "/api/contact";
   const contactTitle = strapiContact?.title || title;
   const contactInfo = {
     title: strapiContact?.description || info.title,
@@ -21,25 +32,54 @@ const Contact = ({ data }) => {
   const [captcha, setCaptcha] = useState({ question: "3 + 4", answer: "7" });
   const [captchaValue, setCaptchaValue] = useState("");
   const [captchaError, setCaptchaError] = useState("");
+  const [formStatus, setFormStatus] = useState("idle");
+  const [formMessage, setFormMessage] = useState("");
 
   useEffect(() => {
-    const firstNumber = Math.floor(Math.random() * 8) + 2;
-    const secondNumber = Math.floor(Math.random() * 8) + 2;
-
-    setCaptcha({
-      question: firstNumber + " + " + secondNumber,
-      answer: String(firstNumber + secondNumber),
-    });
+    setCaptcha(createCaptcha());
   }, []);
 
-  const handleSubmit = (event) => {
-    if (captchaValue.trim() === captcha.answer) {
+  const resetCaptcha = () => {
+    setCaptcha(createCaptcha());
+    setCaptchaValue("");
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (captchaValue.trim() !== captcha.answer) {
+      setCaptchaError("Проверьте ответ на пример");
+      captchaInputRef.current?.focus();
       return;
     }
 
-    event.preventDefault();
-    setCaptchaError("Проверьте ответ на пример");
-    captchaInputRef.current?.focus();
+    setCaptchaError("");
+    setFormStatus("sending");
+    setFormMessage("");
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    try {
+      const res = await fetch(formAction, {
+        method: "POST",
+        body: formData,
+      });
+      const result = await res.json().catch(() => ({}));
+
+      if (!res.ok || result.ok === false) {
+        throw new Error(result.message || "Не удалось отправить сообщение");
+      }
+
+      form.reset();
+      resetCaptcha();
+      setFormStatus("success");
+      setFormMessage("Сообщение отправлено");
+    } catch (error) {
+      setFormStatus("error");
+      setFormMessage(error.message || "Не удалось отправить сообщение");
+      resetCaptcha();
+    }
   };
 
   return (
@@ -51,7 +91,7 @@ const Contact = ({ data }) => {
             <form
               className="contact-form"
               method="POST"
-              action={contact_form_action}
+              action={formAction}
               onSubmit={handleSubmit}
             >
               <div className="mb-3">
@@ -84,8 +124,10 @@ const Contact = ({ data }) => {
               <div className="mb-3">
                 <textarea
                   className="form-textarea w-full rounded-md"
+                  name="message"
                   rows="7"
                   placeholder="Сообщение"
+                  required
                 />
               </div>
               <div className="mb-5">
@@ -106,13 +148,27 @@ const Contact = ({ data }) => {
                   }}
                   required
                 />
+                <input type="hidden" name="captcha_answer" value={captcha.answer} />
                 {captchaError && (
                   <p className="mt-2 text-sm text-red-600">{captchaError}</p>
                 )}
               </div>
-              <button type="submit" className="btn btn-primary">
-                {submitLabel}
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={formStatus === "sending"}
+              >
+                {formStatus === "sending" ? "Отправляем..." : submitLabel}
               </button>
+              {formMessage && (
+                <p
+                  className={`mt-4 text-sm ${
+                    formStatus === "success" ? "text-green-700" : "text-red-600"
+                  }`}
+                >
+                  {formMessage}
+                </p>
+              )}
             </form>
           </div>
           <div className="content col-12 md:col-6 lg:col-5">
