@@ -1,163 +1,30 @@
-"use client";
+import HeaderClient from "./HeaderClient";
 
-import Logo from "@components/Logo";
-import menu from "@config/menu.json";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import React, { useEffect, useState } from "react";
-import config from "../../config/config.json";
+const STRAPI_INTERNAL_URL =
+  process.env.STRAPI_INTERNAL_URL || "http://127.0.0.1:1337";
 
-const menuVisibilityByUrl = {
-  "/": "show_home_link",
-  "/blogs": "show_blog_link",
-  "/pricing": "show_pricing_link",
-  "/contact": "show_contact_link",
-  "/faq": "show_faq_link",
-};
+async function getSiteSettings() {
+  try {
+    const res = await fetch(
+      STRAPI_INTERNAL_URL + "/api/site-setting?populate=*",
+      { cache: "no-store" }
+    );
 
-const Header = () => {
-  const pathname = usePathname();
+    if (!res.ok) {
+      return null;
+    }
 
-  // distructuring the main menu from menu object
-  const { main } = menu;
+    const json = await res.json();
+    return json.data?.attributes || json.data || null;
+  } catch {
+    return null;
+  }
+}
 
-  // states declaration
-  const [navOpen, setNavOpen] = useState(false);
+const Header = async () => {
+  const siteSettings = await getSiteSettings();
 
-  // logo source
-  const { logo } = config.site;
-  const [buttonLabel, setButtonLabel] = useState("");
-  const [buttonLink, setButtonLink] = useState("");
-  const [buttonEnabled, setButtonEnabled] = useState(false);
-  const [hiddenMenuUrls, setHiddenMenuUrls] = useState([]);
-  const [showMainLogo, setShowMainLogo] = useState(true);
-
-  useEffect(() => {
-    fetch("https://strapi.npi.msk.ru/api/site-setting?populate=*")
-      .then((res) => res.json())
-      .then((json) => {
-        const data = json.data?.attributes || json.data;
-
-        const buttonText = data?.header_contact_button_text?.trim();
-        const buttonUrl = data?.header_contact_button_url?.trim();
-
-        setButtonLabel(buttonText || "");
-        setButtonLink(buttonUrl || "");
-        setButtonEnabled(Boolean(buttonText && buttonUrl));
-        setShowMainLogo(data?.main_logo !== false);
-        setHiddenMenuUrls(
-          Object.entries(menuVisibilityByUrl)
-            .filter(([, fieldName]) => data?.[fieldName] === false)
-            .map(([url]) => url)
-        );
-      })
-      .catch(() => {
-        setButtonEnabled(false);
-      });
-  }, []);
-
-  return (
-    <header className="header">
-      <nav className="navbar container">
-        {/* logo */}
-        {showMainLogo && (
-          <div className="order-0">
-            <Logo src={logo} />
-          </div>
-        )}
-
-        {/* navbar toggler */}
-        <button
-          id="show-button"
-          className="order-2 flex cursor-pointer items-center md:order-1 md:hidden"
-          onClick={() => setNavOpen(!navOpen)}
-        >
-          {navOpen ? (
-            <svg className="h-6 fill-current" viewBox="0 0 20 20">
-              <title>Menu Open</title>
-              <polygon
-                points="11 9 22 9 22 11 11 11 11 22 9 22 9 11 -2 11 -2 9 9 9 9 -2 11 -2"
-                transform="rotate(45 10 10)"
-              />
-            </svg>
-          ) : (
-            <svg className="h-6 fill-current" viewBox="0 0 20 20">
-              <title>Menu Close</title>
-              <path d="M0 3h20v2H0V3z m0 6h20v2H0V9z m0 6h20v2H0V0z" />
-            </svg>
-          )}
-        </button>
-
-        {/* Menu */}
-        <div
-          id="nav-menu"
-          className={`order-3 md:order-1 ${
-            navOpen ? "max-h-[1000px]" : "max-h-0"
-          }`}
-        >
-          <ul className="navbar-nav block w-full md:flex md:w-auto lg:space-x-2">
-            {main
-              .filter((menu) => !hiddenMenuUrls.includes(menu.url))
-              .map((menu, i) => (
-              <React.Fragment key={`menu-${i}`}>
-                {menu.hasChildren ? (
-                  <li className="nav-item nav-dropdown group relative">
-                    <span className="nav-link inline-flex items-center">
-                      {menu.name}
-                      <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                      </svg>
-                    </span>
-                    <ul className="nav-dropdown-list hidden group-hover:block md:invisible md:absolute md:block md:opacity-0 md:group-hover:visible md:group-hover:opacity-100">
-                      {menu.children.map((child, i) => (
-                        <li className="nav-dropdown-item" key={`children-${i}`}>
-                          <Link
-                            href={child.url}
-                            className="nav-dropdown-link block"
-                          >
-                            {child.name}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ) : (
-                  <li className="nav-item">
-                    <Link
-                      href={menu.url}
-                      onClick={() => setNavOpen(false)}
-                      className={`nav-link block ${
-                        pathname === menu.url ? "nav-link-active" : ""
-                      }`}
-                    >
-                      {menu.name}
-                    </Link>
-                  </li>
-                )}
-              </React.Fragment>
-            ))}
-            {buttonEnabled && (
-              <li className="md:hidden">
-                <Link
-                  className="btn btn-primary z-0 py-[14px]"
-                  href={buttonLink}
-                >
-                  {buttonLabel}
-                </Link>
-              </li>
-            )}
-          </ul>
-        </div>
-        {buttonEnabled && (
-          <div className="d-flex order-1 ml-auto hidden min-w-[200px] items-center justify-end md:order-2 md:ml-0 md:flex">
-            <Link className="btn btn-primary z-0 py-[14px]" href={buttonLink}>
-              {buttonLabel}
-            </Link>
-          </div>
-        )}
-      </nav>
-    </header>
-  );
+  return <HeaderClient siteSettings={siteSettings} />;
 };
 
 export default Header;
