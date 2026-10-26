@@ -1,5 +1,12 @@
 import { readFile } from "fs/promises";
 import nodemailer from "nodemailer";
+import {
+  checkFormRequestLimit,
+  getClientIp,
+  verifyCaptcha,
+} from "@lib/contactSecurity";
+
+export const runtime = "nodejs";
 
 const STRAPI_API_URL = "http://127.0.0.1:1337";
 const DEFAULT_TO_EMAIL = "hello@npi.msk.ru";
@@ -97,7 +104,7 @@ export async function POST(request) {
   const subject = stripHeaderValue(formData.get("subject"));
   const message = trimValue(formData.get("message"));
   const captcha = trimValue(formData.get("captcha"));
-  const captchaAnswer = trimValue(formData.get("captcha_answer"));
+  const captchaToken = trimValue(formData.get("captcha_token"));
 
   if (!name || !email || !subject || !message) {
     return Response.json(
@@ -106,9 +113,20 @@ export async function POST(request) {
     );
   }
 
-  if (!captchaAnswer || captcha !== captchaAnswer) {
+  const limit = checkFormRequestLimit(getClientIp(request));
+
+  if (!limit.allowed) {
     return Response.json(
-      { ok: false, message: "Проверьте ответ на пример" },
+      { ok: false, message: "Слишком много отправок. Повторите позднее." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfter) } }
+    );
+  }
+
+  const captchaResult = verifyCaptcha(captchaToken, captcha);
+
+  if (!captchaResult.valid) {
+    return Response.json(
+      { ok: false, message: captchaResult.message },
       { status: 400 }
     );
   }

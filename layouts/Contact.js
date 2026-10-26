@@ -2,17 +2,7 @@
 
 import config from "@config/config.json";
 import { markdownify } from "@lib/utils/textConverter";
-import { useEffect, useRef, useState } from "react";
-
-const createCaptcha = () => {
-  const firstNumber = Math.floor(Math.random() * 8) + 2;
-  const secondNumber = Math.floor(Math.random() * 8) + 2;
-
-  return {
-    question: firstNumber + " + " + secondNumber,
-    answer: String(firstNumber + secondNumber),
-  };
-};
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const Contact = ({ data }) => {
   const { frontmatter } = data;
@@ -29,28 +19,47 @@ const Contact = ({ data }) => {
   };
   const submitLabel = strapiContact?.button_text || "Отправить";
   const captchaInputRef = useRef(null);
-  const [captcha, setCaptcha] = useState({ question: "3 + 4", answer: "7" });
+  const [captcha, setCaptcha] = useState({ question: "", token: "" });
   const [captchaValue, setCaptchaValue] = useState("");
   const [captchaError, setCaptchaError] = useState("");
+  const [captchaLoading, setCaptchaLoading] = useState(true);
   const [formStatus, setFormStatus] = useState("idle");
   const [formMessage, setFormMessage] = useState("");
 
-  useEffect(() => {
-    setCaptcha(createCaptcha());
+  const loadCaptcha = useCallback(async () => {
+    setCaptchaLoading(true);
+    setCaptchaValue("");
+
+    try {
+      const res = await fetch("/api/contact-captcha", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.question || !data.token) {
+        throw new Error(data.message || "Не удалось загрузить проверку");
+      }
+
+      setCaptcha({ question: data.question, token: data.token });
+      setCaptchaError("");
+      return true;
+    } catch (error) {
+      setCaptcha({ question: "", token: "" });
+      setCaptchaError(error.message || "Не удалось загрузить проверку");
+      return false;
+    } finally {
+      setCaptchaLoading(false);
+    }
   }, []);
 
-  const resetCaptcha = () => {
-    setCaptcha(createCaptcha());
-    setCaptchaValue("");
-  };
+  useEffect(() => {
+    loadCaptcha();
+  }, [loadCaptcha]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (captchaValue.trim() !== captcha.answer) {
+    if (!captcha.token) {
       setFormStatus("idle");
-      setFormMessage("");
-      setCaptchaError("Проверьте ответ на пример");
+      setFormMessage("Проверка ещё не готова");
       captchaInputRef.current?.focus();
       return;
     }
@@ -74,13 +83,13 @@ const Contact = ({ data }) => {
       }
 
       form.reset();
-      resetCaptcha();
+      await loadCaptcha();
       setFormStatus("success");
       setFormMessage("Сообщение отправлено");
     } catch (error) {
       setFormStatus("error");
       setFormMessage(error.message || "Не удалось отправить сообщение");
-      resetCaptcha();
+      await loadCaptcha();
     }
   };
 
@@ -134,7 +143,9 @@ const Contact = ({ data }) => {
               </div>
               <div className="mb-5">
                 <label className="mb-2 block text-sm font-medium text-dark">
-                  Проверка: сколько будет {captcha.question}?
+                  {captcha.question
+                    ? `Проверка: сколько будет ${captcha.question}?`
+                    : "Загружаем проверку..."}
                 </label>
                 <input
                   ref={captchaInputRef}
@@ -143,6 +154,7 @@ const Contact = ({ data }) => {
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
+                  disabled={captchaLoading || !captcha.token}
                   value={captchaValue}
                   onChange={(event) => {
                     setCaptchaValue(event.target.value);
@@ -151,7 +163,7 @@ const Contact = ({ data }) => {
                     setFormStatus("idle");
                   }}
                 />
-                <input type="hidden" name="captcha_answer" value={captcha.answer} />
+                <input type="hidden" name="captcha_token" value={captcha.token} />
                 {captchaError && (
                   <p className="mt-2 text-sm text-red-600">{captchaError}</p>
                 )}
@@ -159,7 +171,7 @@ const Contact = ({ data }) => {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={formStatus === "sending"}
+                disabled={formStatus === "sending" || captchaLoading || !captcha.token}
               >
                 {formStatus === "sending" ? "Отправляем..." : submitLabel}
               </button>
