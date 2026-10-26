@@ -31,7 +31,7 @@ const Contact = ({ data }) => {
     setCaptchaValue("");
 
     try {
-      const res = await fetch("/api/contact-captcha", { cache: "no-store" });
+      const res = await fetch("/contact-captcha", { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.question || !data.token) {
