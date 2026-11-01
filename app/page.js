@@ -138,6 +138,21 @@ const Home = async () => {
     title: homepage?.features_title || feature.title,
     features: syntkItems.length ? syntkItems : feature.features,
   };
+  const strapiWorkflow = {
+    ...workflow,
+    title: homepage?.workflow_title || workflow.title,
+    description: homepage?.workflow_description || workflow.description,
+  };
+  const strapiCta = {
+    ...call_to_action,
+    title: homepage?.cta_title || call_to_action.title,
+    content: homepage?.cta_content || call_to_action.content,
+    button: {
+      ...call_to_action.button,
+      label: homepage?.cta_button_text || call_to_action.button.label,
+      link: homepage?.cta_button_url || call_to_action.button.link,
+    },
+  };
   const showSyntkBlock = siteSettings?.show_syntk_block !== false;
 
   return (
@@ -154,10 +169,10 @@ const Home = async () => {
       <Services services={services} />
 
       {/* workflow */}
-      <Workflow workflow={workflow} />
+      <Workflow workflow={strapiWorkflow} />
 
       {/* Cta */}
-      <Cta cta={call_to_action} />
+      <Cta cta={strapiCta} />
     </>
   );
 };
