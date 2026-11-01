@@ -21,10 +21,32 @@ async function getSiteSettings() {
   }
 }
 
-const Header = async () => {
-  const siteSettings = await getSiteSettings();
+async function getFaqsExist() {
+  try {
+    const res = await fetch(
+      STRAPI_INTERNAL_URL +
+        "/api/faqs?filters[is_active][$ne]=false&pagination[pageSize]=1",
+      { cache: "no-store" }
+    );
 
-  return <HeaderClient siteSettings={siteSettings} />;
+    if (!res.ok) {
+      return false;
+    }
+
+    const json = await res.json();
+    return (json.data || []).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+const Header = async () => {
+  const [siteSettings, hasFaqs] = await Promise.all([
+    getSiteSettings(),
+    getFaqsExist(),
+  ]);
+
+  return <HeaderClient siteSettings={siteSettings} hasFaqs={hasFaqs} />;
 };
 
 export default Header;

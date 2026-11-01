@@ -5,6 +5,7 @@ import Faq from "@layouts/Faq";
 import Pricing from "@layouts/Pricing";
 import SeoMeta from "@layouts/SeoMeta";
 import { getRegularPage, getSinglePage } from "@lib/contentParser";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -51,15 +52,48 @@ async function getContactPageFromStrapi() {
   }
 }
 
+async function getFaqsFromStrapi() {
+  try {
+    const res = await fetch(
+      "http://127.0.0.1:1337/api/faqs?filters[is_active][$ne]=false&sort=order:asc",
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) {
+      return [];
+    }
+
+    const json = await res.json();
+
+    return (json.data || [])
+      .map((entry) => {
+        const item = entry.attributes || entry;
+        const question = trimValue(item.question);
+        const answer = trimValue(item.answer);
+
+        return question && answer ? { title: question, answer } : null;
+      })
+      .filter(Boolean);
+  } catch (error) {
+    return [];
+  }
+}
+
 // for all regular pages
 const RegularPages = async ({ params }) => {
   const { regular } = params;
   const regularPageData = await getRegularPage(regular);
-  const { title, meta_title, description, image, noindex, canonical, layout } =
+  const { meta_title, description, image, noindex, canonical, layout } =
     regularPageData.frontmatter;
   const { content } = regularPageData;
   const strapiContact =
     layout === "contact" ? await getContactPageFromStrapi() : null;
+  const strapiFaqs = layout === "faq" ? await getFaqsFromStrapi() : [];
+
+  if (layout === "faq" && !strapiFaqs.length) {
+    notFound();
+  }
+
   const pageData = strapiContact
     ? {
         ...regularPageData,
@@ -68,12 +102,21 @@ const RegularPages = async ({ params }) => {
           strapiContact,
         },
       }
-    : regularPageData;
+    : layout === "faq"
+      ? {
+          ...regularPageData,
+          frontmatter: {
+            ...regularPageData.frontmatter,
+            title: "Вопросы и ответы",
+            faqs: strapiFaqs,
+          },
+        }
+      : regularPageData;
 
   return (
     <>
       <SeoMeta
-        title={strapiContact?.title || title}
+        title={strapiContact?.title || pageData.frontmatter.title}
         description={description ? description : content.slice(0, 120)}
         meta_title={meta_title}
         image={image}
@@ -87,7 +130,7 @@ const RegularPages = async ({ params }) => {
       ) : layout === "pricing" ? (
         <Pricing data={regularPageData} />
       ) : layout === "faq" ? (
-        <Faq data={regularPageData} />
+        <Faq data={pageData} />
       ) : (
         <Default data={regularPageData} />
       )}

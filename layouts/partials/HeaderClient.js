@@ -17,7 +17,7 @@ const menuVisibilityByUrl = {
 
 const trimValue = (value) => (typeof value === "string" ? value.trim() : "");
 
-const HeaderClient = ({ siteSettings }) => {
+const HeaderClient = ({ siteSettings, hasFaqs }) => {
   const pathname = usePathname();
   const { main } = menu;
   const [navOpen, setNavOpen] = useState(false);
@@ -29,6 +29,10 @@ const HeaderClient = ({ siteSettings }) => {
   const hiddenMenuUrls = Object.entries(menuVisibilityByUrl)
     .filter(([, fieldName]) => siteSettings?.[fieldName] === false)
     .map(([url]) => url);
+
+  if (!hasFaqs) {
+    hiddenMenuUrls.push("/faq");
+  }
 
   return (
     <header className="header">
