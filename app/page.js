@@ -108,16 +108,61 @@ async function getSyntkItemsFromStrapi() {
   }
 }
 
+async function getServicesFromStrapi() {
+  try {
+    const res = await fetch(
+      STRAPI_API_URL + "/api/services?populate=image&sort=order:asc",
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) {
+      return [];
+    }
+
+    const json = await res.json();
+
+    return (json.data || [])
+      .map((entry) => {
+        const item = getStrapiData(entry);
+        const title = trimValue(item.title);
+        const content = trimValue(item.description) || trimValue(item.short_description);
+
+        if (!title || !content) {
+          return null;
+        }
+
+        const image = getStrapiMediaUrl(item.image);
+        const buttonLabel = trimValue(item.button_text);
+        const buttonLink = trimValue(item.button_url);
+
+        return {
+          title,
+          content,
+          images: image ? [image] : [],
+          button: {
+            enable: Boolean(buttonLabel && buttonLink),
+            label: buttonLabel,
+            link: buttonLink,
+          },
+        };
+      })
+      .filter(Boolean);
+  } catch (error) {
+    return [];
+  }
+}
+
 const Home = async () => {
   const homePage = await getListPage("content/_index.md");
   const { frontmatter } = homePage;
   const { banner, feature, services, workflow, call_to_action } = frontmatter;
   const { title } = config.site;
 
-  const [homepage, siteSettings, syntkItems] = await Promise.all([
+  const [homepage, siteSettings, syntkItems, strapiServices] = await Promise.all([
     getHomepageFromStrapi(),
     getSiteSettingsFromStrapi(),
     getSyntkItemsFromStrapi(),
+    getServicesFromStrapi(),
   ]);
 
   const strapiBanner = homepage
@@ -154,6 +199,7 @@ const Home = async () => {
     },
   };
   const showSyntkBlock = siteSettings?.show_syntk_block !== false;
+  const homepageServices = strapiServices.length ? strapiServices : services;
 
   return (
     <>
@@ -166,7 +212,7 @@ const Home = async () => {
       {showSyntkBlock && <HomeFeatures feature={syntkFeature} />}
 
       {/* services */}
-      <Services services={services} />
+      <Services services={homepageServices} />
 
       {/* workflow */}
       <Workflow workflow={strapiWorkflow} />
