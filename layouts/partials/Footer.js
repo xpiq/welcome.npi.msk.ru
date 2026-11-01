@@ -6,15 +6,45 @@ import { markdownify } from "@lib/utils/textConverter";
 import Image from "next/image";
 import Link from "next/link";
 
-const Footer = () => {
+const STRAPI_INTERNAL_URL =
+  process.env.STRAPI_INTERNAL_URL || "http://127.0.0.1:1337";
+
+async function getFaqsExist() {
+  try {
+    const res = await fetch(
+      STRAPI_INTERNAL_URL +
+        "/api/faqs?filters[is_active][$ne]=false&pagination[pageSize]=1",
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) {
+      return false;
+    }
+
+    const json = await res.json();
+    return (json.data || []).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+const Footer = async () => {
   const { copyright, footer_content } = config.params;
   const { footer } = menu;
+  const hasFaqs = await getFaqsExist();
+  const visibleFooter = footer
+    .map((column) => ({
+      ...column,
+      menu: column.menu.filter((item) => hasFaqs || item.url !== "/faq"),
+    }))
+    .filter((column) => column.menu.length > 0);
+
   return (
     <footer className="section bg-theme-light pb-0">
       <div className="container">
         {/* footer menu */}
         <div className="row">
-          {footer.map((col) => {
+          {visibleFooter.map((col) => {
             return (
               <div className="mb-12 sm:col-6 lg:col-3" key={col.name}>
                 {markdownify(col.name, "h2", "h4")}
