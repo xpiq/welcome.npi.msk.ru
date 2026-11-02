@@ -1,4 +1,5 @@
-import BlogPagination, { generateStaticParams } from "./page/[slug]/page";
+import { notFound } from "next/navigation";
 
-export { generateStaticParams };
-export default BlogPagination;
+const Blogs = () => notFound();
+
+export default Blogs;

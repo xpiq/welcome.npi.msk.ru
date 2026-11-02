@@ -1,8 +1,5 @@
-import NotFound from "@layouts/404";
 import Contact from "@layouts/Contact";
-import Default from "@layouts/Default";
 import Faq from "@layouts/Faq";
-import Pricing from "@layouts/Pricing";
 import SeoMeta from "@layouts/SeoMeta";
 import { getRegularPage, getSinglePage } from "@lib/contentParser";
 import { notFound } from "next/navigation";
@@ -82,6 +79,11 @@ async function getFaqsFromStrapi() {
 // for all regular pages
 const RegularPages = async ({ params }) => {
   const { regular } = params;
+
+  if (regular !== "contact" && regular !== "faq") {
+    notFound();
+  }
+
   const regularPageData = await getRegularPage(regular);
   const { meta_title, description, image, noindex, canonical, layout } =
     regularPageData.frontmatter;
@@ -123,16 +125,10 @@ const RegularPages = async ({ params }) => {
         noindex={noindex}
         canonical={canonical}
       />
-      {layout === "404" ? (
-        <NotFound data={regularPageData} />
-      ) : layout === "contact" ? (
+      {layout === "contact" ? (
         <Contact data={pageData} />
-      ) : layout === "pricing" ? (
-        <Pricing data={regularPageData} />
-      ) : layout === "faq" ? (
-        <Faq data={pageData} />
       ) : (
-        <Default data={regularPageData} />
+        <Faq data={pageData} />
       )}
     </>
   );

@@ -1,15 +1,14 @@
-import config from "@config/config.json";
 import Cta from "@layouts/components/Cta";
 import SeoMeta from "@layouts/SeoMeta";
-
 import HomeBanner from "@layouts/partials/HomeBanner";
 import HomeFeatures from "@layouts/partials/HomeFeatures";
 import Services from "@layouts/partials/Services";
 import Workflow from "@layouts/partials/Workflow";
-import { getListPage } from "../lib/contentParser";
 
-const STRAPI_API_URL = "http://127.0.0.1:1337";
-const STRAPI_PUBLIC_URL = "https://strapi.npi.msk.ru";
+const STRAPI_API_URL =
+  process.env.STRAPI_INTERNAL_URL || "http://127.0.0.1:1337";
+const STRAPI_PUBLIC_URL =
+  process.env.STRAPI_PUBLIC_URL || "https://strapi.npi.msk.ru";
 
 const getStrapiData = (entry) => entry?.attributes || entry;
 const trimValue = (value) => (typeof value === "string" ? value.trim() : "");
@@ -18,207 +17,130 @@ const getStrapiMediaUrl = (media) => {
   const mediaData = getStrapiData(media?.data || media);
   const url = mediaData?.url;
 
-  if (!url) {
-    return "";
-  }
-
-  return url.startsWith("http") ? url : STRAPI_PUBLIC_URL + url;
+  return url ? (url.startsWith("http") ? url : STRAPI_PUBLIC_URL + url) : "";
 };
 
+async function fetchStrapi(path) {
+  try {
+    const res = await fetch(STRAPI_API_URL + path, { cache: "no-store" });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const json = await res.json();
+    return json.data || null;
+  } catch {
+    return null;
+  }
+}
+
 async function getHomepageFromStrapi() {
-  try {
-    const res = await fetch(STRAPI_API_URL + "/api/homepage", {
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      return null;
-    }
-
-    const json = await res.json();
-    const data = json.data;
-
-    if (!data) {
-      return null;
-    }
-
-    return getStrapiData(data);
-  } catch (error) {
-    return null;
-  }
+  const data = await fetchStrapi("/api/homepage");
+  return getStrapiData(data);
 }
 
-async function getSiteSettingsFromStrapi() {
-  try {
-    const res = await fetch(STRAPI_API_URL + "/api/site-setting?populate=*", {
-      cache: "no-store",
-    });
+async function getAdvantagesFromStrapi() {
+  const data = await fetchStrapi("/api/advantages?populate=icon&sort=order:asc");
 
-    if (!res.ok) {
-      return null;
-    }
+  return (data || [])
+    .map((entry) => {
+      const item = getStrapiData(entry);
+      const title = trimValue(item.title);
+      const content = trimValue(item.description);
 
-    const json = await res.json();
-    const data = json.data;
-
-    if (!data) {
-      return null;
-    }
-
-    return getStrapiData(data);
-  } catch (error) {
-    return null;
-  }
-}
-
-async function getSyntkItemsFromStrapi() {
-  try {
-    const res = await fetch(
-      STRAPI_API_URL + "/api/syntks?populate=image&filters[show][$ne]=false&sort=order:asc",
-      { cache: "no-store" }
-    );
-
-    if (!res.ok) {
-      return [];
-    }
-
-    const json = await res.json();
-
-    return (json.data || [])
-      .map((entry) => {
-        const item = getStrapiData(entry);
-        const title = trimValue(item.title);
-        const content = trimValue(item.short_text);
-
-        if (!title && !content) {
-          return null;
-        }
-
-        return {
-          name: title,
-          content,
-          icon: getStrapiMediaUrl(item.image),
-          background_color: trimValue(item.background_color),
-          order: item.order,
-        };
-      })
-      .filter(Boolean);
-  } catch (error) {
-    return [];
-  }
+      return title && content
+        ? { title, content, icon: getStrapiMediaUrl(item.icon) }
+        : null;
+    })
+    .filter(Boolean);
 }
 
 async function getServicesFromStrapi() {
-  try {
-    const res = await fetch(
-      STRAPI_API_URL + "/api/services?populate=image&sort=order:asc",
-      { cache: "no-store" }
-    );
+  const data = await fetchStrapi("/api/services?populate=image&sort=order:asc");
 
-    if (!res.ok) {
-      return [];
-    }
+  return (data || [])
+    .map((entry) => {
+      const item = getStrapiData(entry);
+      const title = trimValue(item.title);
+      const content = trimValue(item.description) || trimValue(item.short_description);
 
-    const json = await res.json();
+      if (!title || !content) {
+        return null;
+      }
 
-    return (json.data || [])
-      .map((entry) => {
-        const item = getStrapiData(entry);
-        const title = trimValue(item.title);
-        const content = trimValue(item.description) || trimValue(item.short_description);
+      const image = getStrapiMediaUrl(item.image);
+      const buttonLabel = trimValue(item.button_text);
+      const buttonLink = trimValue(item.button_url);
 
-        if (!title || !content) {
-          return null;
-        }
-
-        const image = getStrapiMediaUrl(item.image);
-        const buttonLabel = trimValue(item.button_text);
-        const buttonLink = trimValue(item.button_url);
-
-        return {
-          title,
-          content,
-          images: image ? [image] : [],
-          button: {
-            enable: Boolean(buttonLabel && buttonLink),
-            label: buttonLabel,
-            link: buttonLink,
-          },
-        };
-      })
-      .filter(Boolean);
-  } catch (error) {
-    return [];
-  }
+      return {
+        title,
+        content,
+        images: image ? [image] : [],
+        button: {
+          enable: Boolean(buttonLabel && buttonLink),
+          label: buttonLabel,
+          link: buttonLink,
+        },
+      };
+    })
+    .filter(Boolean);
 }
 
 const Home = async () => {
-  const homePage = await getListPage("content/_index.md");
-  const { frontmatter } = homePage;
-  const { banner, feature, services, workflow, call_to_action } = frontmatter;
-  const { title } = config.site;
-
-  const [homepage, siteSettings, syntkItems, strapiServices] = await Promise.all([
+  const [homepage, advantages, services] = await Promise.all([
     getHomepageFromStrapi(),
-    getSiteSettingsFromStrapi(),
-    getSyntkItemsFromStrapi(),
+    getAdvantagesFromStrapi(),
     getServicesFromStrapi(),
   ]);
+  const heroTitle = trimValue(homepage?.hero_title);
+  const heroContent =
+    trimValue(homepage?.hero_description) || trimValue(homepage?.hero_subtitle);
+  const heroButtonLabel = trimValue(homepage?.hero_button_text);
+  const heroButtonLink = trimValue(homepage?.hero_button_url);
+  const workflowTitle = trimValue(homepage?.workflow_title);
+  const workflowDescription = trimValue(homepage?.workflow_description);
+  const ctaTitle = trimValue(homepage?.cta_title);
+  const ctaContent = trimValue(homepage?.cta_content);
+  const ctaButtonLabel = trimValue(homepage?.cta_button_text);
+  const ctaButtonLink = trimValue(homepage?.cta_button_url);
 
-  const strapiBanner = homepage
+  const banner = heroTitle
     ? {
-        ...banner,
-        title: homepage.hero_title || banner.title,
-        content: homepage.hero_description || homepage.hero_subtitle || banner.content,
+        title: heroTitle,
+        content: heroContent,
         button: {
-          ...banner.button,
-          label: homepage.hero_button_text || banner.button.label,
-          link: homepage.hero_button_url || banner.button.link,
+          enable: Boolean(heroButtonLabel && heroButtonLink),
+          label: heroButtonLabel,
+          link: heroButtonLink,
         },
       }
-    : banner;
-
-  const syntkFeature = {
-    ...feature,
-    title: homepage?.features_title || feature.title,
-    features: syntkItems.length ? syntkItems : feature.features,
-  };
-  const strapiWorkflow = {
-    ...workflow,
-    title: homepage?.workflow_title || workflow.title,
-    description: homepage?.workflow_description || workflow.description,
-  };
-  const strapiCta = {
-    ...call_to_action,
-    title: homepage?.cta_title || call_to_action.title,
-    content: homepage?.cta_content || call_to_action.content,
-    button: {
-      ...call_to_action.button,
-      label: homepage?.cta_button_text || call_to_action.button.label,
-      link: homepage?.cta_button_url || call_to_action.button.link,
-    },
-  };
-  const showSyntkBlock = siteSettings?.show_syntk_block !== false;
-  const homepageServices = strapiServices.length ? strapiServices : services;
+    : null;
+  const workflow = workflowTitle || workflowDescription
+    ? { title: workflowTitle, description: workflowDescription }
+    : null;
+  const cta = ctaTitle || ctaContent || (ctaButtonLabel && ctaButtonLink)
+    ? {
+        title: ctaTitle,
+        content: ctaContent,
+        button: {
+          enable: Boolean(ctaButtonLabel && ctaButtonLink),
+          label: ctaButtonLabel,
+          link: ctaButtonLink,
+        },
+      }
+    : null;
 
   return (
     <>
-      <SeoMeta title={title} />
-
-      {/* Banner */}
-      <HomeBanner banner={strapiBanner} />
-
-      {/* Features */}
-      {showSyntkBlock && <HomeFeatures feature={syntkFeature} />}
-
-      {/* services */}
-      <Services services={homepageServices} />
-
-      {/* workflow */}
-      <Workflow workflow={strapiWorkflow} />
-
-      {/* Cta */}
-      <Cta cta={strapiCta} />
+      <SeoMeta title={heroTitle || "NPI"} description={heroContent} />
+      {banner && <HomeBanner banner={banner} />}
+      {advantages.length > 0 && (
+        <HomeFeatures feature={{ title: trimValue(homepage?.features_title), features: advantages }} />
+      )}
+      {services.length > 0 && <Services services={services} />}
+      {workflow && <Workflow workflow={workflow} />}
+      {cta && <Cta cta={cta} />}
     </>
   );
 };

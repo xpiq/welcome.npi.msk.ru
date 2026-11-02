@@ -1,12 +1,12 @@
 {
   "site": {
-    "title": "Bigspring Light Nextjs",
+    "title": "NPI",
     "base_url": "/",
-    "favicon": "/images/favicon.png",
-    "logo": "/images/logo.png",
+    "favicon": "",
+    "logo": "",
     "logo_width": "200",
     "logo_height": "48",
-    "logo_text": "Bigspring Light"
+    "logo_text": "NPI"
   },
 
   "settings": {
@@ -24,13 +24,13 @@
   "params": {
     "contact_form_action": "",
     "tag_manager_id": "",
-    "footer_content": "Lorem ipsum dolor sit amet, consectetur elit. Consjat tristique eget amet, tempus eu at cttur.",
-    "copyright": "Designed and Developed By [Themefisher](https://themefisher.com/)"
+    "footer_content": "",
+    "copyright": ""
   },
 
   "metadata": {
-    "meta_author": "Themefisher",
+    "meta_author": "NPI",
     "meta_image": "",
-    "meta_description": "A SAAS template for nextjs"
+    "meta_description": "IT-инфраструктура для бизнеса"
   }
 }
