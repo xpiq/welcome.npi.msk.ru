@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const Contact = ({ data }) => {
   const { frontmatter } = data;
-  const { title, info, strapiContact } = frontmatter;
+  const { title, info = {}, strapiContact } = frontmatter;
   const { contact_form_action } = config.params;
   const formAction = contact_form_action || "/contact-submit";
   const contactTitle = strapiContact?.title || title;
@@ -15,7 +15,7 @@ const Contact = ({ data }) => {
     description: strapiContact ? "" : info.description,
     contacts: strapiContact?.contacts?.length
       ? strapiContact.contacts
-      : info.contacts,
+      : info.contacts || [],
   };
   const submitLabel = strapiContact?.button_text || "Отправить";
   const captchaInputRef = useRef(null);
